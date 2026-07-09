@@ -50,6 +50,8 @@
 calcAvlCropland <- function(marginal_land = "magpie", cell_upper_bound = 0.9, country_level = FALSE, # nolint
                             cells = "lpjcell", luhBaseYear = "y1995") {
 
+  landAreaBaseYear <- luhBaseYear
+
   # extract function arguments
   marginalLand <- marginal_land # nolint
   cellUpperBound <- cell_upper_bound # nolint
@@ -59,11 +61,12 @@ calcAvlCropland <- function(marginal_land = "magpie", cell_upper_bound = 0.9, co
     luhBaseYear <- paste0("y", luhBaseYear)
   }
 
-  # read luh data in chosen base year
-  luh <- calcOutput("LUH3", landuseTypes = "magpie", aggregate = FALSE,
-                    cellular = TRUE, irrigation = FALSE, years = luhBaseYear)
+  # read landarea data in chosen base year
+  landarea <- calcOutput("LanduseInitialisation", nclasses = "five",
+			 cellular = TRUE, input_magpie = TRUE, aggregate = FALSE,
+  			 years = "y1995")
   # sum land area per grid cell
-  landarea <- dimSums(luh, dim = 3)
+  landarea <- dimSums(landarea, dim = 3)
 
   x <- as.magpie(NULL)
 

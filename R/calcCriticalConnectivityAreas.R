@@ -3,7 +3,8 @@
 #' @description Returns unprotected land area (Mha) within Critical Connectivit Areas
 #' as given in Brennan et al. (2022).
 
-#' @param maginput Whether data should be transformed (based on LUH3 data) to match land use types used in MAgPIE.
+#' @param maginput Whether data should be transformed (based on LanduseInitialisation data) to match
+#' land use types used in MAgPIE.
 #' @param nclasses If \code{magpie_input = TRUE}. Options are either "seven" or "nine". Note that by default,
 #' the protected area is reported for urban land and forestry is zero.
 #' \itemize{
@@ -40,16 +41,18 @@ calcCriticalConnectivityAreas <- function(maginput = TRUE, nclasses = "seven",
   }
 
   if (maginput == TRUE) {
-    luh3 <- calcOutput("LUH3",
-      landuseTypes = "LUH3", aggregate = FALSE,
-      cellular = TRUE, irrigation = FALSE,
-      yrs = 2015
-    )
-    getYears(luh3) <- NULL
-    getCells(luh3) <- getCells(cca)
+    .alignLandUseToCCA <- function(lu, aCCA) {
+      getYears(lu) <- NULL
+      getCells(lu) <- getCells(aCCA)
+      return(lu)
+    }
+
+    baseLandUse <- calcOutput("LanduseInitialisation", nclasses = "five", cellular = TRUE,
+                              input_magpie = TRUE, aggregate = FALSE, years = c(2015, 2020))
+    landUse2015 <- .alignLandUseToCCA(baseLandUse[, 2015, ], cca)
 
     # calculate total land area
-    landArea <- dimSums(luh3, dim = 3)
+    landArea <- dimSums(landUse2015, dim = 3)
 
     # urban land
     urbanLand <- calcOutput("UrbanLandFuture",
@@ -70,20 +73,22 @@ calcCriticalConnectivityAreas <- function(maginput = TRUE, nclasses = "seven",
 
     # Consider mismatches in the classification of open
     # ecosystems into pasture and other between land-use
-    # initialisation (LUH) and ESA CCI:
-    luIni <- calcOutput("LanduseInitialisation",
-      nclasses = "seven", aggregate = FALSE, cellular = TRUE, input_magpie = TRUE
-    )[, "y2020", ]
-    getYears(luIni) <- NULL
-    getCells(luIni) <- getCells(cca)
-    cca <- toolCorrectOpenEcosystemMismatch(cca, luIni)
+    # initialisation and ESA CCI:
+    landUse9 <- calcOutput("LanduseInitialisation",
+      nclasses = "nine", aggregate = FALSE, cellular = TRUE, input_magpie = TRUE
+    )[, "y2020", ] # TODO: Why do we use 2020 here and 2015 above?
+    landUse9 <- .alignLandUseToCCA(landUse9, cca)
+    # The following uses landUse and not landUse9, as we want aggregated
+    # past and other.
+    landUse2020 <- .alignLandUseToCCA(baseLandUse[, 2020, ], cca)
+    cca <- toolCorrectOpenEcosystemMismatch(cca, landUse2020)
 
     if (nclasses %in% c("seven", "nine")) {
       # differentiate primary and secondary forest based on LUH3 data
-      totForestLUH <- dimSums(luh3[, , c("primf", "secdf")], dim = 3) # nolint
-      primforestShr <- luh3[, , "primf"] / setNames(totForestLUH + 1e-10, NULL)
-      secdforestShr <- luh3[, , "secdf"] / setNames(totForestLUH + 1e-10, NULL)
-      # where luh3 does not report forest, but we find forest land in
+      totalForest <- dimSums(landUse9[, , c("primforest", "secdforest")], dim = 3) # nolint
+      primforestShr <- landUse9[, , "primforest"] / setNames(totalForest + 1e-10, NULL)
+      secdforestShr <- landUse9[, , "secdforest"] / setNames(totalForest + 1e-10, NULL)
+      # where LandUseInitialisation does not report forest, but we find forest land in
       # CCA data, set share of secondary forest land to 1
       secdforestShr[secdforestShr == 0 & primforestShr == 0] <- 1
       # multiply shares of primary and secondary non-forest veg with
@@ -114,10 +119,10 @@ calcCriticalConnectivityAreas <- function(maginput = TRUE, nclasses = "seven",
       range <- cca[, , paste(getItems(cca, dim = 3.1), "past", sep = ".")]
 
       # separate other land into primary and secondary
-      totOtherLUH <- dimSums(luh3[, , c("primn", "secdn")], dim = 3) # nolint
-      primotherShr <- luh3[, , "primn"] / setNames(totOtherLUH + 1e-10, NULL)
-      secdotherShr <- luh3[, , "secdn"] / setNames(totOtherLUH + 1e-10, NULL)
-      # where luh3 does not report other land, but we find other land in
+      totalOther <- dimSums(landUse9[, , c("primother", "secdother")], dim = 3) # nolint
+      primotherShr <- landUse9[, , "primother"] / setNames(totalOther + 1e-10, NULL)
+      secdotherShr <- landUse9[, , "secdother"] / setNames(totalOther + 1e-10, NULL)
+      # where LandUseInitialisation does not report other land, but we find other land in
       # CCA data, set share of secondary other land to 1
       secdotherShr[secdotherShr == 0 & primotherShr == 0] <- 1
       # multiply shares of primary and secondary non-forest veg with other land
