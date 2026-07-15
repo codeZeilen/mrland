@@ -54,7 +54,9 @@ calcCriticalConnectivityAreas <- function(maginput = TRUE, nclasses = "seven",
     # calculate total land area
     landArea <- dimSums(landUse2015, dim = 3)
 
-    # urban land
+    # urban land, this is consistent with
+    # LanduseInitialisation used for landArea, as 
+    # UrbanLandFuture uses LanduseInitialisation internally.
     urbanLand <- calcOutput("UrbanLandFuture",
       subtype = "LUH3", aggregate = FALSE,
       timestep = "5year", cells = "lpjcell"

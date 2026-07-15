@@ -57,14 +57,14 @@ calcAvlCropland <- function(marginal_land = "magpie", cell_upper_bound = 0.9, co
   cellUpperBound <- cell_upper_bound # nolint
   countryLevel <- country_level # nolint
 
-  if (is.numeric(luhBaseYear)) {
-    luhBaseYear <- paste0("y", luhBaseYear)
+  if (is.numeric(landAreaBaseYear)) {
+    landAreaBaseYear <- paste0("y", landAreaBaseYear)
   }
 
   # read landarea data in chosen base year
   landarea <- calcOutput("LanduseInitialisation", nclasses = "five",
-			 cellular = TRUE, input_magpie = TRUE, aggregate = FALSE,
-  			 years = "y1995")
+			                   cellular = TRUE, input_magpie = TRUE, aggregate = FALSE,
+												 years = landAreaBaseYear)
   # sum land area per grid cell
   landarea <- dimSums(landarea, dim = 3)
 
